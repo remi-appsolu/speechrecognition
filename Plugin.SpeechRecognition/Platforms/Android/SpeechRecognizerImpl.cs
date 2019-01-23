@@ -44,7 +44,7 @@ namespace Plugin.SpeechRecognition
         });
 
 
-        public override IObservable<string> ListenUntilPause() => Observable.Create<string>(ob =>
+        public override IObservable<string> ListenUntilPause(int silenceTimeouMilliseconds) => Observable.Create<string>(ob =>
         {
             var final = "";
             var listener = new SpeechRecognitionEventListener //new SpeechRecognitionListener
@@ -92,7 +92,7 @@ namespace Plugin.SpeechRecognition
             //speechRecognizer.SetRecognitionListener(listener);
             SetEvents(speechRecognizer, listener);
 
-            speechRecognizer.StartListening(this.CreateSpeechIntent(true));
+            speechRecognizer.StartListening(this.CreateSpeechIntent(true, silenceTimeouMilliseconds));
 
             return () =>
             {
@@ -190,7 +190,7 @@ namespace Plugin.SpeechRecognition
             };
         });
 
-        protected virtual Intent CreateSpeechIntent(bool partialResults)
+        protected virtual Intent CreateSpeechIntent(bool partialResults, int silenceTimeouMilliseconds = 0)
         {
             var intent = new Intent(RecognizerIntent.ActionRecognizeSpeech);
             intent.PutExtra(RecognizerIntent.ExtraLanguagePreference, Java.Util.Locale.Default);
@@ -198,8 +198,11 @@ namespace Plugin.SpeechRecognition
             intent.PutExtra(RecognizerIntent.ExtraLanguageModel, RecognizerIntent.LanguageModelFreeForm);
             intent.PutExtra(RecognizerIntent.ExtraCallingPackage, Application.Context.PackageName);
             //intent.PutExtra(RecognizerIntent.ExtraMaxResults, 1);
-            intent.PutExtra(RecognizerIntent.ExtraSpeechInputCompleteSilenceLengthMillis, 5000);
-            intent.PutExtra(RecognizerIntent.ExtraSpeechInputPossiblyCompleteSilenceLengthMillis, 5000);
+            if (silenceTimeouMilliseconds > 0)
+            {
+                intent.PutExtra(RecognizerIntent.ExtraSpeechInputCompleteSilenceLengthMillis, silenceTimeouMilliseconds);
+                intent.PutExtra(RecognizerIntent.ExtraSpeechInputPossiblyCompleteSilenceLengthMillis, silenceTimeouMilliseconds);
+            }
             //intent.PutExtra(RecognizerIntent.ExtraSpeechInputMinimumLengthMillis, 15000);
             intent.PutExtra(RecognizerIntent.ExtraPartialResults, partialResults);
 

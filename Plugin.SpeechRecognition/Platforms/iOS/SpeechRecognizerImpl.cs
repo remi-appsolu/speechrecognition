@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Reactive.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using AVFoundation;
 using Foundation;
 using Plugin.Permissions;
@@ -19,8 +21,8 @@ namespace Plugin.SpeechRecognition
 
 
         public override bool IsSupported => UIDevice.CurrentDevice.CheckSystemVersion(10, 0);
-        public override IObservable<string> ListenUntilPause() => this.Listen(true);
-        public override IObservable<string> ContinuousDictation() => this.Listen(false);
+        public override IObservable<string> ListenUntilPause(int silenceTimeouMilliseconds) => this.Listen(silenceTimeouMilliseconds, true);
+        public override IObservable<string> ContinuousDictation() => this.Listen(0, false);
 
 
         public override IObservable<SpeechRecognizerStatus> RequestPermission() => Observable.FromAsync(async ct =>
@@ -46,37 +48,69 @@ namespace Plugin.SpeechRecognition
             }
         });
 
+        private int SilenceTimeouMilliseconds = 0;
+        private CancellationTokenSource TimerTokenSource = null;
 
-        protected virtual IObservable<string> Listen(bool completeOnEndOfSpeech) => Observable.Create<string>(ob =>
+        private void StartTimer() {
+            if (TimerTokenSource != null) {
+                TimerTokenSource.Cancel();
+                TimerTokenSource.Dispose();
+            }
+            if (SilenceTimeouMilliseconds <= 0) return;
+
+            TimerTokenSource = new CancellationTokenSource();
+            var token = TimerTokenSource.Token;
+            Task.Run(async () => {
+                await Task.Delay(SilenceTimeouMilliseconds);
+                if (!token.IsCancellationRequested) StopRecording();
+            }, token);
+        }
+
+        private void StopTimer() {
+            if (TimerTokenSource != null)
+            {
+                TimerTokenSource.Cancel();
+                TimerTokenSource.Dispose();
+                TimerTokenSource = null;
+            }
+            
+        }
+
+        private SFSpeechRecognizer SpeechRecognizer;
+        private AVAudioEngine AudioEngine;
+        private SFSpeechAudioBufferRecognitionRequest SpeechRequest;
+        protected virtual IObservable<string> Listen(int silenceTimeouMilliseconds, bool completeOnEndOfSpeech) => Observable.Create<string>(ob =>
         {
-            var speechRecognizer = new SFSpeechRecognizer();
-            if (!speechRecognizer.Available)
+            SilenceTimeouMilliseconds = silenceTimeouMilliseconds;
+            SpeechRecognizer = new SFSpeechRecognizer();
+            if (!SpeechRecognizer.Available)
                 throw new ArgumentException("Speech recognizer is not available");
 
-            var speechRequest = new SFSpeechAudioBufferRecognitionRequest();
-            var audioEngine = new AVAudioEngine();
-            var format = audioEngine.InputNode.GetBusOutputFormat(0);
+            SpeechRequest = new SFSpeechAudioBufferRecognitionRequest();
+            AudioEngine = new AVAudioEngine();
+            var format = AudioEngine.InputNode.GetBusOutputFormat(0);
 
-            if (!completeOnEndOfSpeech)
-                speechRequest.TaskHint = SFSpeechRecognitionTaskHint.Dictation;
+            if (!completeOnEndOfSpeech) SpeechRequest.TaskHint = SFSpeechRecognitionTaskHint.Dictation;
 
-            audioEngine.InputNode.InstallTapOnBus(
+            AudioEngine.InputNode.InstallTapOnBus(
                 0,
                 1024,
                 format,
-                (buffer, when) => speechRequest.Append(buffer)
+                (buffer, when) => SpeechRequest.Append(buffer)
             );
-            audioEngine.Prepare();
-            audioEngine.StartAndReturnError(out var error);
+            AudioEngine.Prepare();
+            AudioEngine.StartAndReturnError(out var error);
 
             if (error != null)
                 throw new ArgumentException("Error starting audio engine - " + error.LocalizedDescription);
 
             this.ListenSubject.OnNext(true);
 
+            if (completeOnEndOfSpeech) StartTimer();
+
             var currentIndex = 0;
             var cancel = false;
-            var task = speechRecognizer.GetRecognitionTask(speechRequest, (result, err) =>
+            var task = SpeechRecognizer.GetRecognitionTask(SpeechRequest, (result, err) =>
             {
                 if (cancel)
                     return;
@@ -95,6 +129,8 @@ namespace Plugin.SpeechRecognition
                     }
                     else
                     {
+                        if (completeOnEndOfSpeech) StartTimer();
+
                         for (var i = currentIndex; i < result.BestTranscription.Segments.Length; i++)
                         {
                             var s = result.BestTranscription.Segments[i].Substring;
@@ -105,20 +141,30 @@ namespace Plugin.SpeechRecognition
                 }
             });
 
+            if (completeOnEndOfSpeech) StopTimer();
+
             return () =>
             {
                 cancel = true;
                 task?.Cancel();
                 task?.Dispose();
-                audioEngine.Stop();
-                audioEngine.InputNode?.RemoveTapOnBus(0);
-                audioEngine.Dispose();
-                speechRequest.EndAudio();
-                speechRequest.Dispose();
-                speechRecognizer.Dispose();
+                StopRecording();
                 this.ListenSubject.OnNext(false);
             };
         });
+
+        public void StopRecording() {
+
+            AudioEngine?.Stop();
+            AudioEngine?.InputNode?.RemoveTapOnBus(0);
+            AudioEngine?.Dispose();
+            AudioEngine = null;
+            SpeechRequest?.EndAudio();
+            SpeechRequest?.Dispose();
+            SpeechRequest = null;
+            SpeechRecognizer?.Dispose();
+            SpeechRecognizer = null;
+        }
     }
 }
 

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -14,7 +15,13 @@ namespace Samples.Pages
 	{
 		public StartPage ()
 		{
-			InitializeComponent ();
+            try
+            {
+                InitializeComponent();
+            }
+            catch (Exception e) {
+                Debug.WriteLine(e.ToString());
+            }
 		}
 	}
 }

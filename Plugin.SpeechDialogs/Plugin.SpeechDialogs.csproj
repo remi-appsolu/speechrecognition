@@ -8,7 +8,7 @@
         <RootNamespace>Plugin.SpeechDialogs</RootNamespace>
         <Description>Speech Recognition that allows for continuous dictation, phrases, or quick confirmations.</Description>
         <Product>Plugin.SpeechDialogs</Product>
-        <PackageVersion>1.0.1-appsolu1</PackageVersion>
+        <PackageVersion>1.0.1-appsolu2</PackageVersion>
         <RepositoryUrl>https://github.com/aritchie/speechrecognition</RepositoryUrl>
         <PackageProjectUrl>https://github.com/aritchie/speechrecognition</PackageProjectUrl>
         <PackageLicenseUrl>https://github.com/aritchie/speechrecognition/blob/master/LICENSE.md</PackageLicenseUrl>
@@ -24,7 +24,7 @@
         <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
         <AssemblyVersion>1.0.1.0</AssemblyVersion>
         <FileVersion>1.0.1.0</FileVersion>
-        <Version>1.0.1-appsolu1</Version>
+        <Version>1.0.1-appsolu2</Version>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">

@@ -11,9 +11,9 @@
     <ContentPage.Content>
         <StackLayout>
             <Label Text="{Binding PermissionStatus, StringFormat='Permission Status: {0}'}" />
-            <Button Text="Request Permission" Command="{Binding RequestPermission}" />
+            <Button BackgroundColor="Red" Text="Request Permission" Command="{Binding RequestPermission}" />
 
-            <Button Text="Go to Samples" Command="{Binding GotoSamples}" />
+            <Button BackgroundColor="Yellow" Text="Go to Samples" Command="{Binding GotoSamples}" />
         </StackLayout>
     </ContentPage.Content>
 </ContentPage>

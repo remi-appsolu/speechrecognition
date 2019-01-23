@@ -30,7 +30,7 @@ namespace Plugin.SpeechRecognition
         /// Optimal command for listening to a sentence.  Completes when user pauses
         /// </summary>
         /// <returns></returns>
-        IObservable<string> ListenUntilPause();
+        IObservable<string> ListenUntilPause(int silenceTimeouMilliseconds = 5000);
 
 
         /// <summary>
