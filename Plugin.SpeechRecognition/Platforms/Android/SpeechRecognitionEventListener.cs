@@ -7,7 +7,7 @@ using Debug = System.Diagnostics.Debug;
 
 namespace Plugin.SpeechRecognition
 {
-    public class SpeechRecognitionListener : Java.Lang.Object, IRecognitionListener
+    public class SpeechRecognitionEventListener //: Java.Lang.Object, IRecognitionListener
     {
         public Action StartOfSpeech { get; set; }
         public Action EndOfSpeech { get; set; }
@@ -16,62 +16,59 @@ namespace Plugin.SpeechRecognition
         public Action<string> FinalResults { get; set; }
         public Action<string> PartialResults { get; set; }
         public Action<float> RmsChanged { get; set; }
-        
 
-        public void OnBeginningOfSpeech()
+        public void OnPartialResults(object sender, PartialResultsEventArgs e)
         {
-            Debug.WriteLine("Beginning of Speech");
-            this.StartOfSpeech?.Invoke();
+            Debug.WriteLine("OnPartialResults Remi");
+            this.SendResults(e?.PartialResults, this.PartialResults);
         }
 
+        public void OnResults(object sender, ResultsEventArgs e)
+        {
+            Debug.WriteLine("Speech Results");
+            this.SendResults(e.Results, this.FinalResults);
+        }
 
-        public void OnBufferReceived(byte[] buffer) => Debug.WriteLine("Buffer Received");
+        public void OnReadyForSpeech(object sender, ReadyForSpeechEventArgs e)
+        {
+            Debug.WriteLine("Ready for Speech");
+            this.ReadyForSpeech?.Invoke();
+        }
 
-
-        public void OnEndOfSpeech()
+        public void OnEndOfSpeech(object sender, EventArgs e)
         {
             Debug.WriteLine("End of Speech");
             this.EndOfSpeech?.Invoke();
         }
 
-
-        public void OnError(SpeechRecognizerError error)
-        {
-            Debug.WriteLine("Error: " + error);
-            this.Error?.Invoke(error);
-        }
-
-
-        public void OnEvent(int eventType, Bundle @params) => Debug.WriteLine("OnEvent: " + eventType);
-
-
-        public void OnReadyForSpeech(Bundle @params)
+        public void OnBeginningOfSpeech(object sender, EventArgs e)
         {
             Debug.WriteLine("Ready for Speech");
             this.ReadyForSpeech?.Invoke();
         }
 
 
-        public void OnPartialResults(Bundle bundle)
+        public void OnError(object sender, ErrorEventArgs e)
         {
-            Debug.WriteLine("OnPartialResults Remi");
-            this.SendResults(bundle, this.PartialResults);
+            Debug.WriteLine("Error: " + e?.Error);
+            if (e != null) this.Error?.Invoke(e.Error);
         }
 
-
-        public void OnResults(Bundle bundle)
+        public void OnEvent(object sender, EventEventArgs e)
         {
-            Debug.WriteLine("Speech Results");
-            this.SendResults(bundle, this.FinalResults);
+            Debug.WriteLine("OnEvent: " + e?.EventType);
         }
 
-
-        public void OnRmsChanged(float rmsdB)
+        public void OnRmsChanged(object sender, RmsChangedEventArgs e)
         {
-            Debug.WriteLine("RMS Changed: " + rmsdB);
-            this.RmsChanged?.Invoke(rmsdB);
+            Debug.WriteLine("RMS Changed: " + e?.RmsdB);
+            if (e != null) this.RmsChanged?.Invoke(e.RmsdB);
         }
 
+        public void OnBufferReceived(object sender, BufferReceivedEventArgs e)
+        {
+            Debug.WriteLine("Buffer Received");
+        }
 
         void SendResults(Bundle bundle, Action<string> action)
         {
@@ -111,5 +108,6 @@ namespace Plugin.SpeechRecognition
                 action?.Invoke(matches.First());
             }
         }
+
     }
 }
