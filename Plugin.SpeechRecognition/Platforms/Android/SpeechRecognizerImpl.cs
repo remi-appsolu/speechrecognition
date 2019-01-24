@@ -44,7 +44,7 @@ namespace Plugin.SpeechRecognition
         });
 
 
-        public override IObservable<string> ListenUntilPause(int silenceTimeouMilliseconds) => Observable.Create<string>(ob =>
+        public override IObservable<string> ListenUntilPause(int silenceTimeouMilliseconds, bool playSound, int sound) => Observable.Create<string>(ob =>
         {
             var final = "";
             var listener = new SpeechRecognitionEventListener //new SpeechRecognitionListener

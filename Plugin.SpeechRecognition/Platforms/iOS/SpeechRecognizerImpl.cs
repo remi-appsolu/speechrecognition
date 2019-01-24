@@ -21,8 +21,8 @@ namespace Plugin.SpeechRecognition
 
 
         public override bool IsSupported => UIDevice.CurrentDevice.CheckSystemVersion(10, 0);
-        public override IObservable<string> ListenUntilPause(int silenceTimeouMilliseconds) => this.Listen(silenceTimeouMilliseconds, true);
-        public override IObservable<string> ContinuousDictation() => this.Listen(0, false);
+        public override IObservable<string> ListenUntilPause(int silenceTimeouMilliseconds, bool playSound, int sound) => this.Listen(silenceTimeouMilliseconds, true, playSound, sound);
+        public override IObservable<string> ContinuousDictation() => this.Listen(0, false, false, 0);
 
 
         public override IObservable<SpeechRecognizerStatus> RequestPermission() => Observable.FromAsync(async ct =>
@@ -79,18 +79,26 @@ namespace Plugin.SpeechRecognition
         private SFSpeechRecognizer SpeechRecognizer;
         private AVAudioEngine AudioEngine;
         private SFSpeechAudioBufferRecognitionRequest SpeechRequest;
-        protected virtual IObservable<string> Listen(int silenceTimeouMilliseconds, bool completeOnEndOfSpeech) => Observable.Create<string>(ob =>
+        protected virtual IObservable<string> Listen(int silenceTimeouMilliseconds, bool completeOnEndOfSpeech, bool playSound, int sound) => Observable.Create<string>(ob =>
         {
             SilenceTimeouMilliseconds = silenceTimeouMilliseconds;
             SpeechRecognizer = new SFSpeechRecognizer();
             if (!SpeechRecognizer.Available)
                 throw new ArgumentException("Speech recognizer is not available");
 
+            if (completeOnEndOfSpeech)
+            {
+                if (playSound) PlaySystemSound((uint)sound);
+            }
+
             SpeechRequest = new SFSpeechAudioBufferRecognitionRequest();
             AudioEngine = new AVAudioEngine();
+
             var format = AudioEngine.InputNode.GetBusOutputFormat(0);
 
             if (!completeOnEndOfSpeech) SpeechRequest.TaskHint = SFSpeechRecognitionTaskHint.Dictation;
+
+            
 
             AudioEngine.InputNode.InstallTapOnBus(
                 0,
@@ -105,11 +113,14 @@ namespace Plugin.SpeechRecognition
                 throw new ArgumentException("Error starting audio engine - " + error.LocalizedDescription);
 
             this.ListenSubject.OnNext(true);
-
-            if (completeOnEndOfSpeech) StartTimer();
+            if (completeOnEndOfSpeech)
+            {
+                StartTimer();
+            }
 
             var currentIndex = 0;
             var cancel = false;
+            
             var task = SpeechRecognizer.GetRecognitionTask(SpeechRequest, (result, err) =>
             {
                 if (cancel)
@@ -141,10 +152,13 @@ namespace Plugin.SpeechRecognition
                 }
             });
 
-            if (completeOnEndOfSpeech) StopTimer();
-
             return () =>
             {
+                if (completeOnEndOfSpeech)
+                {
+                    StopTimer();
+                    if (playSound) PlaySystemSound((uint)sound+1);
+                }
                 cancel = true;
                 task?.Cancel();
                 task?.Dispose();
@@ -152,6 +166,26 @@ namespace Plugin.SpeechRecognition
                 this.ListenSubject.OnNext(false);
             };
         });
+
+        private void PlaySystemSound(uint sound) {
+            Console.WriteLine("SpeechRecognition play : "+ sound);
+            try
+            {
+                var audioSession = AVAudioSession.SharedInstance();
+                audioSession.SetCategory(AVAudioSessionCategory.PlayAndRecord, AVAudioSessionCategoryOptions.DefaultToSpeaker);
+                audioSession.SetActive(true);
+
+                var audio = new AudioToolbox.SystemSound(sound);
+                if (audio != null)
+                {
+                    //audio.PlaySystemSound();
+                    audio.PlayAlertSound();
+                }
+            }
+            catch(Exception e){
+                Console.WriteLine("SpeechRecognition play error : " + e.ToString());
+            }
+        }
 
         public void StopRecording() {
 
